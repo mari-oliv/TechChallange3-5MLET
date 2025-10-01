@@ -4,8 +4,16 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from pydantic import BaseMo@app.get("/model-info")
+def model_info():
+    ensure_model_loaded()
+    return {
+        "model_name": _model_name,
+        "model_path": MODEL_PATH,
+        "load_time_seconds": _model_load_time,
+        "has_predict_proba": _model_has_proba,
+        "classes": _model_classes
+    }from typing import List, Dict, Any, Optional
 from unidecode import unidecode
 
 APP_NAME = "SP Crime Predictor API"
@@ -173,12 +181,12 @@ def health():
 
 @app.get("/labels")
 def labels():
-    ensure_model_loaded()
     return {"classes": _model_classes}
 
 @app.get("/model_info")
 def model_info():
-    ensure_model_loaded()
+    if not model_ready():
+        raise HTTPException(status_code=503, detail="Modelo não carregado")
     return {
         "model_name": _model_name,
         "model_path": MODEL_PATH,
@@ -189,7 +197,8 @@ def model_info():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    ensure_model_loaded()
+    if not model_ready():
+        raise HTTPException(status_code=503, detail="Modelo não carregado")
 
     df = pd.DataFrame([i.dict() for i in req.items])
     df = ensure_input_schema(df)
