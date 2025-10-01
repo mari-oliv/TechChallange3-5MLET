@@ -1,0 +1,229 @@
+import os
+import time
+import joblib
+import pandas as pd
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
+from unidecode import unidecode
+
+APP_NAME = "SP Crime Predictor API"
+APP_VERSION = "1.0.0"
+
+MODEL_PATH = os.getenv("MODEL_PATH", "model.pkl")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")  
+
+app = FastAPI(title=APP_NAME, version=APP_VERSION)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[ALLOWED_ORIGINS] if ALLOWED_ORIGINS != "*" else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -----------------------------
+# Utilidades
+# -----------------------------
+CENTRAL_BAIRROS = [
+    "REPÚBLICA","CENTRO","SANTA CECÍLIA","CAMPOS ELÍSEOS","CONSOLACAO",
+    "SANTA IFIGENIA","VILA BUARQUE","BARRA FUNDA","HIGIENÓPOLIS","BELA VISTA",
+    "LUZ","BOM RETIRO","JARDIM PAULISTA","CERQUEIRA CÉSAR","VILA MARIANA",
+    "PERDIZES","LIBERDADE","SÉ"
+]
+CENTRAL_BAIRROS_NORM = { 
+    unidecode(b.upper()): b for b in CENTRAL_BAIRROS
+}
+
+DIA_NORM_MAP = {
+    "SEGUNDA": "SEGUNDA",
+    "SEGUNDA-FEIRA": "SEGUNDA",
+    "TERCA": "TERÇA",
+    "TERCA-FEIRA": "TERÇA",
+    "TERÇA": "TERÇA",
+    "TERÇA-FEIRA": "TERÇA",
+    "QUARTA": "QUARTA",
+    "QUARTA-FEIRA": "QUARTA",
+    "QUINTA": "QUINTA",
+    "QUINTA-FEIRA": "QUINTA",
+    "SEXTA": "SEXTA",
+    "SEXTA-FEIRA": "SEXTA",
+    "SABADO": "SÁBADO",
+    "SÁBADO": "SÁBADO",
+    "DOMINGO": "DOMINGO",
+}
+
+def normalize_text(x: Any) -> str:
+    if x is None:
+        return ""
+    return unidecode(str(x).strip().upper())
+
+def normalize_bairro(bairro: str) -> str:
+    n = normalize_text(bairro)
+    return CENTRAL_BAIRROS_NORM.get(n, bairro.strip().upper())
+
+def normalize_dia(dia: str) -> str:
+    n = normalize_text(dia)
+    return DIA_NORM_MAP.get(n, dia.strip().upper())
+
+def ensure_input_schema(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {
+        "DIA-SEMANA": "DIA_SEMANA",
+        "DIA DA SEMANA": "DIA_SEMANA",
+        "BAIRROS": "BAIRRO",
+        "H": "HORA",
+    }
+    for a, b in rename_map.items():
+        if a in df.columns and b not in df.columns:
+            df[b] = df[a]
+
+    for col in ["BAIRRO", "HORA", "DIA_SEMANA"]:
+        if col not in df.columns:
+            df[col] = None
+
+    df["BAIRRO"] = df["BAIRRO"].apply(lambda x: normalize_bairro(str(x)))
+    df["DIA_SEMANA"] = df["DIA_SEMANA"].apply(lambda x: normalize_dia(str(x)))
+
+    def to_hour(v):
+        if v is None:
+            return None
+        s = str(v).lower().strip().replace("h", "").replace(":00", "")
+        try:
+            hv = int(float(s))
+        except:
+            return None
+        return hv if 0 <= hv <= 23 else None
+
+    df["HORA"] = df["HORA"].apply(to_hour)
+    return df
+
+# -----------------------------
+# Modelo (carregado na inicialização)
+# -----------------------------
+_model = None
+_model_name = None
+_model_load_time = None
+_model_has_proba = False
+_model_classes: Optional[List[str]] = None
+
+def load_model_or_raise(path: str):
+    global _model, _model_name, _model_load_time, _model_has_proba, _model_classes
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Arquivo de modelo não encontrado em: {path}")
+    t0 = time.time()
+    m = joblib.load(path)
+    _model = m
+    _model_name = os.path.basename(path)
+    _model_load_time = round(time.time() - t0, 3)
+    _model_has_proba = hasattr(_model, "predict_proba")
+    _model_classes = list(getattr(_model, "classes_", [])) if hasattr(_model, "classes_") else None
+
+try:
+    load_model_or_raise(MODEL_PATH)
+    print(f"[INFO] Modelo carregado: {_model_name} em {_model_load_time}s | predict_proba={_model_has_proba}")
+except Exception as e:
+    print(f"[ERROR] Falha ao carregar modelo inicial: {e}")
+
+def model_ready() -> bool:
+    return _model is not None
+
+# -----------------------------
+# Schemas de requisição/resposta
+# -----------------------------
+class PredictItem(BaseModel):
+    BAIRRO: str = Field(..., example="REPÚBLICA")
+    HORA: int = Field(..., ge=0, le=23, example=1)
+    DIA_SEMANA: str = Field(..., example="SEGUNDA")
+
+class PredictRequest(BaseModel):
+    items: List[PredictItem]
+
+class TopKItem(BaseModel):
+    class_: str
+    p: float  # porcentagem
+
+class PredictResponseItem(BaseModel):
+    predicted_class: str
+    probability: Optional[float] = None   # %
+    top_k: Optional[List[TopKItem]] = None
+
+class PredictResponse(BaseModel):
+    results: List[PredictResponseItem]
+    metadata: Dict[str, Any]
+
+# -----------------------------
+# Rotas
+# -----------------------------
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "model_loaded": model_ready(),
+        "model_name": _model_name,
+        "has_predict_proba": _model_has_proba,
+        "load_time_seconds": _model_load_time,
+        "classes": _model_classes
+    }
+
+@app.get("/labels")
+def labels():
+    return {"classes": _model_classes}
+
+@app.get("/model_info")
+def model_info():
+    if not model_ready():
+        raise HTTPException(status_code=503, detail="Modelo não carregado")
+    return {
+        "model_name": _model_name,
+        "model_path": MODEL_PATH,
+        "load_time_seconds": _model_load_time,
+        "has_predict_proba": _model_has_proba,
+        "classes": _model_classes
+    }
+
+@app.post("/predict", response_model=PredictResponse)
+def predict(req: PredictRequest):
+    if not model_ready():
+        raise HTTPException(status_code=503, detail="Modelo não carregado")
+
+    df = pd.DataFrame([i.dict() for i in req.items])
+    df = ensure_input_schema(df)
+
+    df["_BAIRRO_CENTRAL"] = df["BAIRRO"].apply(lambda b: unidecode(b) in CENTRAL_BAIRROS_NORM)
+
+    try:
+        y_pred = _model.predict(df)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Falha em predict: {e}")
+
+    probs = None
+    if _model_has_proba:
+        try:
+            probs = _model.predict_proba(df)
+        except Exception:
+            probs = None
+
+    out: List[PredictResponseItem] = []
+    for i in range(len(df)):
+        item = PredictResponseItem(predicted_class=str(y_pred[i]))
+        if probs is not None:
+            row = probs[i]
+            maxp = float(max(row)) * 100.0
+            item.probability = round(maxp, 2)
+            if _model_classes:
+                paired = list(zip(_model_classes, row))
+                paired.sort(key=lambda x: x[1], reverse=True)
+                item.top_k = [
+                    TopKItem(class_=c, p=round(float(p)*100.0, 2))
+                    for c, p in paired[:3]
+                ]
+        out.append(item)
+
+    meta = {
+        "items": len(out),
+        "model_name": _model_name,
+        "has_predict_proba": _model_has_proba
+    }
+    return {"results": out, "metadata": meta}
