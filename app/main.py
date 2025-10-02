@@ -4,8 +4,17 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Any
 from app.model_loader import load_model, infer
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="API de Inferência de Crimes", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Carrega o modelo uma única vez na inicialização
 MODEL = load_model()
