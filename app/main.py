@@ -21,14 +21,14 @@ MODEL = load_model()
 
 
 class PredictRequest(BaseModel):
-    data: str = Field(..., description="Data no formato livre (ex: 2025-10-01)")
+    dia_semana: str = Field(..., description="Dia da semana (ex: segunda)")
     hora: int = Field(..., ge=0, le=23, description="Hora cheia 0-23")
     bairro: str = Field(..., min_length=1, description="Nome do bairro")
 
-    @validator("data")
-    def valida_data_nao_vazia(cls, v: str) -> str:
+    @validator("dia_semana")
+    def valida_dia_semana_nao_vazio(cls, v: str) -> str:
         if not str(v).strip():
-            raise ValueError("data não pode ser vazia")
+            raise ValueError("dia_semana não pode ser vazio")
         return v
 
     @validator("bairro")
