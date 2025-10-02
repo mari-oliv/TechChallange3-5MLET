@@ -41,17 +41,18 @@ def _softmax(x: np.ndarray) -> np.ndarray:
 def _build_input_df(payload: Dict[str, Any]) -> pd.DataFrame:
     """
     Normaliza o payload para o DataFrame esperado pelo Pipeline:
-    colunas 'DATA', 'HORA', 'BAIRRO'. Mantém valores como strings/nums.
+    colunas 'DIA_SEMANA', 'HORA', 'BAIRRO'. Mantém valores como strings/nums.
     """
-    data = payload.get("data")
-    hora = payload.get("hora")
-    bairro = payload.get("bairro")
+
+    DIA_SEMANA = payload.get("DIA_SEMANA")
+    HORA = payload.get("HORA")
+    BAIRRO = payload.get("BAIRRO")
 
     # Monta DataFrame com nomes em caixa alta conforme suposição do Pipeline
     df = pd.DataFrame([{
-        "DATA": data,
-        "HORA": hora,
-        "BAIRRO": bairro
+        "DIA_SEMANA": DIA_SEMANA,
+        "HORA": HORA,
+        "BAIRRO": BAIRRO
     }])
     return df
 

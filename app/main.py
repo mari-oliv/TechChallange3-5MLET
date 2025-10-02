@@ -21,17 +21,17 @@ MODEL = load_model()
 
 
 class PredictRequest(BaseModel):
-    dia_semana: str = Field(..., description="Dia da semana (ex: segunda)")
-    hora: int = Field(..., ge=0, le=23, description="Hora cheia 0-23")
-    bairro: str = Field(..., min_length=1, description="Nome do bairro")
+    DIA_SEMANA: str = Field(..., description="Dia da semana (ex: segunda)")
+    HORA: int = Field(..., ge=0, le=23, description="Hora cheia 0-23")
+    BAIRRO: str = Field(..., min_length=1, description="Nome do bairro")
 
-    @validator("dia_semana")
+    @validator("DIA_SEMANA")
     def valida_dia_semana_nao_vazio(cls, v: str) -> str:
         if not str(v).strip():
             raise ValueError("dia_semana não pode ser vazio")
         return v
 
-    @validator("bairro")
+    @validator("BAIRRO")
     def valida_bairro_nao_vazio(cls, v: str) -> str:
         if not str(v).strip():
             raise ValueError("bairro não pode ser vazio")
@@ -57,6 +57,6 @@ def predict(payload: PredictRequest):
     crime_previsto, top5 = infer(MODEL, payload.dict())
     # Se ainda assim não há resultado, tratar como indisponível
     if not crime_previsto and not top5:
-        raise HTTPException(status_code=500, detail="falha ao inferir")
+        raise HTTPException(status_code=500, detail="falha ao prever crime")
 
     return {"crime_previsto": crime_previsto, "top5": top5}
