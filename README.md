@@ -1,3 +1,15 @@
+# Pós Tech Machine Learning Engineering, turma 5MELT 
+
+## Site de predição: https://sp-crime-predict.lovable.app/
+
+Desenvolvido por alunos da FIAP Pós-Tech Machine Learning Engineering:
+* Lucas Barros Cordeiro
+* Pedro Costa Mello
+* Tarik Vieira Ghazzaoui
+* Marina Oliveira Neves
+* João Gabriel Andrade
+
+
 
 # API de Inferência (FastAPI + Gunicorn)
 
@@ -5,13 +17,13 @@ API minimalista para servir um modelo de Machine Learning (scikit-learn) em prod
 
 - Rotas:
   - `GET /status` → `{"status":"ok"}`
-  - `POST /predict` → recebe JSON `{ "data": "...", "hora": 13, "bairro": "REPÚBLICA" }` e retorna:
+  - `POST /predict` → recebe JSON `{ "dia_semana: "...", "hora": 13, "bairro": "REPÚBLICA" }` e retorna:
     ```json
     {
       "crime_previsto": "FURTO",
       "top5": [
-        {"classe": "FURTO", "prob": 0.72},
-        {"classe": "ROUBO", "prob": 0.18},
+        {"classe": "FURTO/ROUBO A TRANSEUNTE", "prob": 0.72},
+        {"classe": "FURTO/ROUBO DE VEÍCULO", "prob": 0.18},
         {"classe": "ESTELIONATO", "prob": 0.06},
         {"classe": "OUTROS", "prob": 0.03},
         {"classe": "LESÃO", "prob": 0.01}
@@ -92,7 +104,7 @@ PORT=8000 gunicorn -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:$PORT app.ma
 ## Validação (Pydantic)
 
 - `POST /predict` exige os campos:
-  - `data` (string)
+  - `dia_semana` (string)
   - `hora` (inteiro 0–23)
   - `bairro` (string não vazia)
 
@@ -107,12 +119,12 @@ curl -s http://localhost:8000/status
 
 Predict (local):
 ```bash
-curl -s -X POST http://localhost:8000/predict   -H "Content-Type: application/json"   -d '{"data":"2025-10-01","hora":13,"bairro":"REPÚBLICA"}'
+curl -s -X POST http://localhost:8000/predict   -H "Content-Type: application/json"   -d '{"dia_semana": "segunda","hora":13,"bairro":"REPÚBLICA"}'
 ```
 
 Predict (Render, supondo serviço em produção):
 ```bash
-curl -s -X POST https://seu-servico.onrender.com/predict   -H "Content-Type: application/json"   -d '{"data":"2025-10-01","hora":13,"bairro":"REPÚBLICA"}'
+curl -s -X POST https://techchallange3-5mlet.onrender.com/predict  -H "Content-Type: application/json"   -d '{"dia_semana": "segunda","hora":13,"bairro":"REPÚBLICA"}'
 ```
 
 ## Notas
