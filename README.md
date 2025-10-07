@@ -1,13 +1,15 @@
-# Pós Tech Machine Learning Engineering, turma 5MELT 
+# Pós Tech Machine Learning Engineering - TC Fase 3 - Arquitetura ML e Aprendizado
+
+turma 5MELT 
 
 ## Site de predição: https://sp-crime-predict.lovable.app/
 
 Desenvolvido por alunos da FIAP Pós-Tech Machine Learning Engineering:
-* Lucas Barros Cordeiro
-* Pedro Costa Mello
-* Tarik Vieira Ghazzaoui
-* Marina Oliveira Neves
-* João Gabriel Andrade
+* [Lucas Barros Cordeiro](https://www.linkedin.com/in/eng-lucas-cordeiro/)
+* [Pedro Costa Mello](https://www.linkedin.com/in/pedro-costa-2802-pcm/)
+* [Tarik Vieira Ghazzaoui](https://www.linkedin.com/in/tarik-vieira-ghazzaoui/)
+* [Marina Oliveira Neves](https://www.linkedin.com/in/marina-o-neves/)
+* [João Gabriel Andrade](https://www.linkedin.com/in/gabrieljoao5/)
 
 
 
@@ -20,14 +22,29 @@ API minimalista para servir um modelo de Machine Learning (scikit-learn) em prod
   - `POST /predict` → recebe JSON `{ "dia_semana: "...", "hora": 13, "bairro": "REPÚBLICA" }` e retorna:
     ```json
     {
-      "crime_previsto": "FURTO",
-      "top5": [
-        {"classe": "FURTO/ROUBO A TRANSEUNTE", "prob": 0.72},
-        {"classe": "FURTO/ROUBO DE VEÍCULO", "prob": 0.18},
-        {"classe": "ESTELIONATO", "prob": 0.06},
-        {"classe": "OUTROS", "prob": 0.03},
-        {"classe": "LESÃO", "prob": 0.01}
-      ]
+    "crime_previsto": "FURTO/ROUBO EM INTERIOR DE VEÍCULO",
+    "top5": [
+        {
+            "classe": "FURTO/ROUBO A TRANSEUNTE",
+            "prob": 0.5581194336640457
+        },
+        {
+            "classe": "FURTO/ROUBO EM INTERIOR DE VEÍCULO",
+            "prob": 0.14392809150488417
+        },
+        {
+            "classe": "FURTO/ROUBO EM ESTAÇÃO/TREM/METRÔ/ÔNIBUS",
+            "prob": 0.12305111995705278
+        },
+        {
+            "classe": "FURTO/ROUBO EM ESTABELECIMENTO COMERCIAL",
+            "prob": 0.06696833537732111
+        },
+        {
+            "classe": "FURTO/ROUBO DE VEÍCULO (CARRO/MOTO/BICICLETA)",
+            "prob": 0.04411216415315874
+        }
+    ]
     }
     ```
 
@@ -39,14 +56,14 @@ API minimalista para servir um modelo de Machine Learning (scikit-learn) em prod
 │   ├── main.py            # App FastAPI e rotas
 │   └── model_loader.py    # Utilitários: carregamento do modelo e inferência
 ├── model
-│   └── model.pkl          # (opcional) seu modelo; se ausente, API responde 503 no /predict
+│   └── model.pkl          # seu modelo; se ausente, API responde 503 no /predict
 ├── Procfile               # Comando de inicialização para Render
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-> **Importante:** O modelo deve ser um `Pipeline` do scikit-learn que aceite um `DataFrame` com colunas **`DATA`**, **`HORA`** e **`BAIRRO`** (ou equivalentes tratados dentro do pipeline).
+> **Importante:** O modelo deve ser um `Pipeline` do scikit-learn que aceite um `DataFrame` com colunas **`DIA_SEMANA`**, **`HORA`** e **`BAIRRO`** (ou equivalentes tratados dentro do pipeline).
 
 ## Carregamento do Modelo
 
@@ -119,12 +136,13 @@ curl -s http://localhost:8000/status
 
 Predict (local):
 ```bash
-curl -s -X POST http://localhost:8000/predict   -H "Content-Type: application/json"   -d '{"dia_semana": "segunda","hora":13,"bairro":"REPÚBLICA"}'
+curl -s -X POST http://localhost:8000/predict   -H "Content-Type: application/json"   -d '{"DIA_SEMANA": "sexta","HORA": 20,"BAIRRO": "se"}'
 ```
+
 
 Predict (Render, supondo serviço em produção):
 ```bash
-curl -s -X POST https://techchallange3-5mlet.onrender.com/predict  -H "Content-Type: application/json"   -d '{"dia_semana": "segunda","hora":13,"bairro":"REPÚBLICA"}'
+curl -s -X POST https://techchallange3-5mlet.onrender.com/predict  -H "Content-Type: application/json"   -d '{"DIA_SEMANA": "sexta","HORA": 20,"BAIRRO": "se"}'
 ```
 
 ## Notas
